@@ -76,21 +76,44 @@ export const demoLogin = asyncHandler(async (_req: Request, res: Response) => {
 });
 
 export const googleLogin = asyncHandler(async (req: Request, res: Response) => {
-  const { idToken } = req.body as { idToken: string };
-  if (!idToken) throw new ApiError(400, 'Missing Google idToken.');
+  const { idToken, accessToken, mode = 'login' } = req.body as {
+    idToken?: string;
+    accessToken?: string;
+    mode?: 'login' | 'register';
+  };
+  if (!idToken && !accessToken) throw new ApiError(400, 'Missing Google credential.');
   if (!env.googleClientId) throw new ApiError(500, 'GOOGLE_CLIENT_ID is not configured on the server.');
 
-  const ticket = await googleClient.verifyIdToken({ idToken, audience: env.googleClientId });
-  const payload = ticket.getPayload();
-  if (!payload?.email) throw new ApiError(401, 'Could not verify Google account.');
+  let payload: { email?: string; name?: string; sub?: string };
+  if (idToken) {
+    const ticket = await googleClient.verifyIdToken({ idToken, audience: env.googleClientId });
+    payload = ticket.getPayload() ?? {};
+  } else {
+    const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) throw new ApiError(401, 'Could not verify Google account.');
+    payload = await response.json() as { email?: string; name?: string; sub?: string };
+  }
 
-  let user = await User.findOne({ email: payload.email.toLowerCase() });
-  if (!user) {
+  if (!payload.email) throw new ApiError(401, 'Could not verify Google account.');
+
+  const email = payload.email.toLowerCase();
+  let user = await User.findOne({ email });
+
+  if (mode === 'register') {
+    if (user) throw new ApiError(409, 'An account with that email already exists. Please log in instead.');
     user = await User.create({
       name: payload.name ?? payload.email,
-      email: payload.email.toLowerCase(),
+      email,
       googleId: payload.sub,
     });
+  } else {
+    if (!user) throw new ApiError(404, 'No account exists for this Google email. Please register first.');
+    if (!user.googleId && payload.sub) {
+      user.googleId = payload.sub;
+      await user.save();
+    }
   }
 
   res.json({ success: true, data: toAuthResponse(user) });
