@@ -25,3 +25,22 @@ export async function chatCompletion(
   });
   return completion.choices[0]?.message?.content?.trim() ?? '';
 }
+
+export async function* streamChatCompletion(
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+  opts: { temperature?: number; maxTokens?: number } = {}
+): AsyncGenerator<string> {
+  const openai = getClient();
+  const stream = await openai.chat.completions.create({
+    model: env.openaiModel,
+    messages,
+    temperature: opts.temperature ?? 0.6,
+    max_tokens: opts.maxTokens ?? 700,
+    stream: true,
+  });
+
+  for await (const part of stream) {
+    const token = part.choices[0]?.delta?.content;
+    if (token) yield token;
+  }
+}

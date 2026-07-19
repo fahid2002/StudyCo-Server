@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { upload } from '../middleware/upload';
-import { getChatHistory, postChatMessage } from '../controllers/ai.chat.controller';
+import { getChatHistory, postChatMessage, streamChatMessage } from '../controllers/ai.chat.controller';
 import { generateContent, listGeneratedContent } from '../controllers/ai.generator.controller';
 import { getMyRecommendations, postFeedback } from '../controllers/ai.recommend.controller';
 import { analyzeDocument } from '../controllers/ai.document.controller';
@@ -11,6 +11,7 @@ const router = Router();
 // AI Chat Assistant
 router.get('/chat', requireAuth, getChatHistory);
 router.post('/chat', requireAuth, postChatMessage);
+router.post('/chat/stream', requireAuth, streamChatMessage);
 
 // AI Content Generator
 router.post('/generate', requireAuth, generateContent);
