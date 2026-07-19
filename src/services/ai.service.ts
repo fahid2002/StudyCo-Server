@@ -27,6 +27,21 @@ interface GeminiResponse {
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
+function getGeminiErrorMessage(statusCode: number, message?: string) {
+  const rawMessage = message?.trim();
+  const normalized = rawMessage?.toLowerCase() ?? '';
+
+  if (statusCode === 429 || normalized.includes('quota') || normalized.includes('rate limit')) {
+    return 'The AI free quota is temporarily full. Please wait a minute and try again, or add billing/increase quota in Google AI Studio.';
+  }
+
+  if (statusCode === 403) {
+    return 'The Gemini API key is not allowed to use this model. Check the key permissions, quota, and selected model in Google AI Studio.';
+  }
+
+  return rawMessage || 'Gemini could not generate a response.';
+}
+
 function getGeminiApiKey() {
   if (!env.geminiApiKey) {
     throw new ApiError(500, 'GEMINI_API_KEY is not configured on the server.');
@@ -76,7 +91,7 @@ export async function chatCompletion(
 
   const data = (await response.json()) as GeminiResponse;
   if (!response.ok) {
-    throw new ApiError(response.status, data.error?.message || 'Gemini could not generate a response.');
+    throw new ApiError(response.status, getGeminiErrorMessage(response.status, data.error?.message));
   }
 
   const text = extractText(data);
@@ -96,7 +111,7 @@ export async function* streamChatCompletion(
 
   if (!response.ok || !response.body) {
     const data = (await response.json().catch(() => null)) as GeminiResponse | null;
-    throw new ApiError(response.status, data?.error?.message || 'Gemini could not stream a response.');
+    throw new ApiError(response.status, getGeminiErrorMessage(response.status, data?.error?.message));
   }
 
   const reader = response.body.getReader();
