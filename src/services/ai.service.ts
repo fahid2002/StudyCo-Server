@@ -108,6 +108,7 @@ export async function* streamChatCompletion(
     if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
+    buffer = buffer.replace(/\r\n/g, '\n');
     const events = buffer.split('\n\n');
     buffer = events.pop() ?? '';
 
