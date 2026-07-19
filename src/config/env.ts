@@ -17,6 +17,6 @@ export const env = {
   jwtSecret: get('JWT_SECRET', 'dev_only_secret_change_me'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   geminiApiKey: get('GEMINI_API_KEY'),
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-flash-latest',
   googleClientId: get('GOOGLE_CLIENT_ID'),
 };
