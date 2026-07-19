@@ -94,7 +94,10 @@ export const streamChatMessage = asyncHandler(async (req: Request, res: Response
       res.write(`data: ${JSON.stringify({ token })}\n\n`);
     }
 
-    const saved = await ChatMessage.create({ user: userId, role: 'assistant', content: reply.trim() });
+    const finalReply = reply.trim();
+    if (!finalReply) throw new ApiError(502, 'Gemini returned an empty response.');
+
+    const saved = await ChatMessage.create({ user: userId, role: 'assistant', content: finalReply });
     res.write(`event: done\ndata: ${JSON.stringify({ id: saved._id, createdAt: saved.createdAt })}\n\n`);
     res.end();
   } catch (error) {

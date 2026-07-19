@@ -52,7 +52,10 @@ function buildGeminiPayload(messages: ChatMessage[], opts: { temperature?: numbe
     ...(systemText ? { systemInstruction: { parts: [{ text: systemText }] } } : {}),
     generationConfig: {
       temperature: opts.temperature ?? 0.6,
-      maxOutputTokens: opts.maxTokens ?? 700,
+      maxOutputTokens: Math.max(opts.maxTokens ?? 700, 256),
+      thinkingConfig: {
+        thinkingLevel: 'MINIMAL',
+      },
     },
   };
 }
@@ -76,7 +79,9 @@ export async function chatCompletion(
     throw new ApiError(response.status, data.error?.message || 'Gemini could not generate a response.');
   }
 
-  return extractText(data);
+  const text = extractText(data);
+  if (!text) throw new ApiError(502, 'Gemini returned an empty response.');
+  return text;
 }
 
 export async function* streamChatCompletion(
