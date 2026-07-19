@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
+import { Types } from 'mongoose';
 import { StudySession } from '../models/Session';
 import { Review } from '../models/Review';
 import { ApiError } from '../utils/ApiError';
@@ -92,12 +93,19 @@ export const deleteSession = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const reserveSeat = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) throw new ApiError(401, 'Login is required to reserve a session.');
+
   const session = await StudySession.findById(req.params.id);
   if (!session) throw new ApiError(404, 'Session not found.');
   if (session.seatsReserved >= session.seatsTotal) {
     throw new ApiError(400, 'This session is full.');
   }
+  if (session.attendees.some((attendee) => String(attendee) === String(userId))) {
+    throw new ApiError(400, 'You have already reserved this session.');
+  }
   session.seatsReserved += 1;
+  session.attendees.push(new Types.ObjectId(userId));
   await session.save();
   res.json({ success: true, data: session });
 });

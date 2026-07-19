@@ -22,6 +22,7 @@ export interface IStudySession extends Document {
   date: Date;
   imageUrl?: string;
   host: Types.ObjectId;
+  attendees: Types.ObjectId[];
   ratingAverage: number;
   ratingCount: number;
   seatsTotal: number;
@@ -46,6 +47,7 @@ const sessionSchema = new Schema<IStudySession>(
     date: { type: Date, required: true },
     imageUrl: { type: String },
     host: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    attendees: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     ratingAverage: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
     seatsTotal: { type: Number, default: 8 },

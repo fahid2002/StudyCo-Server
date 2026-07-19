@@ -24,15 +24,18 @@ export const postChatMessage = asyncHandler(async (req: Request, res: Response) 
 
   const userId = req.user?.id;
 
-  const upcoming = await StudySession.find({ host: userId, status: 'Upcoming' })
+  const upcoming = await StudySession.find({
+    status: 'Upcoming',
+    $or: [{ host: userId }, { attendees: userId }],
+  })
     .sort({ date: 1 })
     .limit(3);
 
   const contextNote = upcoming.length
-    ? `The student's upcoming hosted sessions: ${upcoming
-        .map((s) => `${s.title} on ${s.date.toDateString()}`)
+    ? `The student's upcoming hosted or reserved sessions: ${upcoming
+        .map((s) => `${s.title} on ${s.date.toDateString()} (${String(s.host) === String(userId) ? 'hosting' : 'reserved'})`)
         .join('; ')}.`
-    : 'The student has no upcoming hosted sessions.';
+    : 'The student has no upcoming hosted or reserved sessions.';
 
   const history = await ChatMessage.find({ user: userId }).sort({ createdAt: 1 }).limit(20);
 
