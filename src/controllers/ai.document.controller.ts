@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import { extractText } from '../services/document.service';
 import { chatCompletion } from '../services/ai.service';
 import { ApiError } from '../utils/ApiError';
+import { recordActivity } from '../services/activity.service';
 
 export const analyzeDocument = asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) throw new ApiError(400, 'Upload a PDF, DOCX, or TXT file.');
@@ -31,6 +32,14 @@ export const analyzeDocument = asyncHandler(async (req: Request, res: Response) 
     ],
     { maxTokens: 900 }
   );
+
+  await recordActivity({
+    userId: req.user?.id,
+    type: 'ai',
+    title: 'Analyzed a document',
+    detail: req.file.originalname,
+    metadata: { charactersExtracted: text.length },
+  });
 
   res.json({
     success: true,

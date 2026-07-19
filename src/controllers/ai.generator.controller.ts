@@ -3,6 +3,7 @@ import asyncHandler from 'express-async-handler';
 import { GeneratedContent } from '../models/GeneratedContent';
 import { chatCompletion } from '../services/ai.service';
 import { ApiError } from '../utils/ApiError';
+import { recordActivity } from '../services/activity.service';
 
 const lengthTokens: Record<string, number> = { Short: 220, Medium: 450, Long: 800 };
 
@@ -28,6 +29,13 @@ every line should help someone actually study this topic.`;
   );
 
   const saved = await GeneratedContent.create({ user: req.user?.id, type, topic, length, output });
+  await recordActivity({
+    userId: req.user?.id,
+    type: 'ai',
+    title: 'Generated study content',
+    detail: `${type}: ${topic}`,
+    metadata: { generatedContentId: saved._id, length },
+  });
   res.status(201).json({ success: true, data: saved });
 });
 

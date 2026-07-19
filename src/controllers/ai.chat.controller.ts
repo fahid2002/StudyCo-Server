@@ -4,6 +4,7 @@ import { ChatMessage } from '../models/ChatMessage';
 import { StudySession } from '../models/Session';
 import { chatCompletion, streamChatCompletion } from '../services/ai.service';
 import { ApiError } from '../utils/ApiError';
+import { recordActivity } from '../services/activity.service';
 
 const SYSTEM_PROMPT = `You are the StudyCo in-app assistant. StudyCo is a platform where students
 book peer-led and tutor-led study sessions, and use AI tools to generate notes and get
@@ -48,6 +49,7 @@ export const postChatMessage = asyncHandler(async (req: Request, res: Response) 
   ]);
 
   await ChatMessage.create({ user: userId, role: 'assistant', content: reply });
+  await recordActivity({ userId, type: 'ai', title: 'Used AI assistant', detail: message.slice(0, 120) });
 
   res.json({ success: true, data: { reply } });
 });
@@ -98,6 +100,7 @@ export const streamChatMessage = asyncHandler(async (req: Request, res: Response
     if (!finalReply) throw new ApiError(502, 'Gemini returned an empty response.');
 
     const saved = await ChatMessage.create({ user: userId, role: 'assistant', content: finalReply });
+    await recordActivity({ userId, type: 'ai', title: 'Used AI assistant', detail: message.slice(0, 120) });
     res.write(`event: done\ndata: ${JSON.stringify({ id: saved._id, createdAt: saved.createdAt })}\n\n`);
     res.end();
   } catch (error) {

@@ -6,6 +6,7 @@ import { User } from '../models/User';
 import { generateToken } from '../utils/generateToken';
 import { ApiError } from '../utils/ApiError';
 import { env } from '../config/env';
+import { recordActivity } from '../services/activity.service';
 
 const googleClient = new OAuth2Client(env.googleClientId);
 
@@ -34,6 +35,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 
   const hashed = await bcrypt.hash(password, 10);
   const user = await User.create({ name, email: email.toLowerCase(), password: hashed });
+  await recordActivity({ userId: user._id, type: 'auth', title: 'Account created', detail: 'Registered with email and password.' });
 
   res.status(201).json({ success: true, data: toAuthResponse(user) });
 });
@@ -55,6 +57,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(401, 'Incorrect email or password.');
   }
 
+  await recordActivity({ userId: user._id, type: 'auth', title: 'Logged in', detail: 'Signed in with email and password.' });
   res.json({ success: true, data: toAuthResponse(user) });
 });
 
@@ -72,6 +75,7 @@ export const demoLogin = asyncHandler(async (_req: Request, res: Response) => {
       interests: ['Mathematics', 'Computer Science', 'Test Prep'],
     });
   }
+  await recordActivity({ userId: user._id, type: 'auth', title: 'Demo login', detail: 'Signed in with the demo account.' });
   res.json({ success: true, data: toAuthResponse(user) });
 });
 
@@ -108,12 +112,14 @@ export const googleLogin = asyncHandler(async (req: Request, res: Response) => {
       email,
       googleId: payload.sub,
     });
+    await recordActivity({ userId: user._id, type: 'auth', title: 'Google account registered', detail: 'Registered with Google.' });
   } else {
     if (!user) throw new ApiError(404, 'No account exists for this Google email. Please register first.');
     if (!user.googleId && payload.sub) {
       user.googleId = payload.sub;
       await user.save();
     }
+    await recordActivity({ userId: user._id, type: 'auth', title: 'Google login', detail: 'Signed in with Google.' });
   }
 
   res.json({ success: true, data: toAuthResponse(user) });
@@ -136,5 +142,6 @@ export const updateInterests = asyncHandler(async (req: Request, res: Response) 
     { new: true }
   );
   if (!user) throw new ApiError(404, 'User not found.');
+  await recordActivity({ userId: user._id, type: 'profile', title: 'Updated interests', detail: `${user.interests.length} interests saved.` });
   res.json({ success: true, data: { interests: user.interests } });
 });

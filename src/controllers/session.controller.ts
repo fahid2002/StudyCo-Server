@@ -4,6 +4,7 @@ import { Types } from 'mongoose';
 import { StudySession } from '../models/Session';
 import { Review } from '../models/Review';
 import { ApiError } from '../utils/ApiError';
+import { recordActivity } from '../services/activity.service';
 
 // GET /api/sessions?search=&subject=&mode=&level=&sort=&page=&limit=
 export const listSessions = asyncHandler(async (req: Request, res: Response) => {
@@ -73,6 +74,14 @@ export const createSession = asyncHandler(async (req: Request, res: Response) =>
     host: req.user?.id,
   });
 
+  await recordActivity({
+    userId: req.user?.id,
+    type: 'session',
+    title: 'Published a session',
+    detail: title,
+    metadata: { sessionId: session._id, subject, mode },
+  });
+
   res.status(201).json({ success: true, data: session });
 });
 
@@ -88,7 +97,15 @@ export const deleteSession = asyncHandler(async (req: Request, res: Response) =>
   if (String(session.host) !== String(req.user?.id)) {
     throw new ApiError(403, 'You can only delete sessions you host.');
   }
+  const title = session.title;
   await session.deleteOne();
+  await recordActivity({
+    userId: req.user?.id,
+    type: 'session',
+    title: 'Deleted a session',
+    detail: title,
+    metadata: { sessionId: req.params.id },
+  });
   res.json({ success: true, data: { id: req.params.id } });
 });
 
@@ -107,6 +124,13 @@ export const reserveSeat = asyncHandler(async (req: Request, res: Response) => {
   session.seatsReserved += 1;
   session.attendees.push(new Types.ObjectId(userId));
   await session.save();
+  await recordActivity({
+    userId,
+    type: 'booking',
+    title: 'Reserved a seat',
+    detail: session.title,
+    metadata: { sessionId: session._id, date: session.date },
+  });
   res.json({ success: true, data: session });
 });
 
@@ -122,6 +146,13 @@ export const addReview = asyncHandler(async (req: Request, res: Response) => {
   session.ratingCount = allReviews.length;
   session.ratingAverage = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
   await session.save();
+  await recordActivity({
+    userId: req.user?.id,
+    type: 'session',
+    title: 'Reviewed a session',
+    detail: session.title,
+    metadata: { sessionId: session._id, rating },
+  });
 
   res.status(201).json({ success: true, data: review });
 });
