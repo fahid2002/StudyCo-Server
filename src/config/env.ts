@@ -16,7 +16,7 @@ export const env = {
   mongoUri: get('MONGODB_URI'),
   jwtSecret: get('JWT_SECRET', 'dev_only_secret_change_me'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  openaiApiKey: get('OPENAI_API_KEY'),
-  openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+  geminiApiKey: get('GEMINI_API_KEY'),
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
   googleClientId: get('GOOGLE_CLIENT_ID'),
 };

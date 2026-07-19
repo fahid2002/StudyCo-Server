@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import { GeneratedContent } from '../models/GeneratedContent';
-import { chatCompletion } from '../services/openai.service';
+import { chatCompletion } from '../services/ai.service';
 import { ApiError } from '../utils/ApiError';
 
 const lengthTokens: Record<string, number> = { Short: 220, Medium: 450, Long: 800 };

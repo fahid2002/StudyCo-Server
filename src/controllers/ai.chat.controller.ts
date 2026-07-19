@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import { ChatMessage } from '../models/ChatMessage';
 import { StudySession } from '../models/Session';
-import { chatCompletion, streamChatCompletion } from '../services/openai.service';
+import { chatCompletion, streamChatCompletion } from '../services/ai.service';
 import { ApiError } from '../utils/ApiError';
 
 const SYSTEM_PROMPT = `You are the StudyCo in-app assistant. StudyCo is a platform where students

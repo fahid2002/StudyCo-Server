@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import fs from 'fs/promises';
 import { extractText } from '../services/document.service';
-import { chatCompletion } from '../services/openai.service';
+import { chatCompletion } from '../services/ai.service';
 import { ApiError } from '../utils/ApiError';
 
 export const analyzeDocument = asyncHandler(async (req: Request, res: Response) => {
