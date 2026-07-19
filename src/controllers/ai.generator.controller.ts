@@ -5,7 +5,7 @@ import { chatCompletion } from '../services/ai.service';
 import { ApiError } from '../utils/ApiError';
 import { recordActivity } from '../services/activity.service';
 
-const lengthTokens: Record<string, number> = { Short: 220, Medium: 450, Long: 800 };
+const lengthTokens: Record<string, number> = { Short: 700, Medium: 1400, Long: 2400 };
 
 export const generateContent = asyncHandler(async (req: Request, res: Response) => {
   const { type, topic, length } = req.body as {
@@ -16,16 +16,24 @@ export const generateContent = asyncHandler(async (req: Request, res: Response) 
 
   if (!type || !topic || !length) throw new ApiError(400, 'type, topic, and length are required.');
 
-  const prompt = `Create ${length.toLowerCase()}-length "${type}" content for a student studying: "${topic}".
-Format it clearly with headings or numbering where appropriate. Do not pad with filler —
-every line should help someone actually study this topic.`;
+  const prompt = `Create complete ${length.toLowerCase()}-length "${type}" content for a student studying: "${topic}".
+Write it like polished class notes a student can directly revise from.
+Use clear section headings, short paragraphs, numbered steps, and bullet points where helpful.
+Do not use Markdown markers such as #, ##, **, or backticks.
+Do not use LaTeX syntax such as $...$, \\frac, \\times, or \\text.
+For formulas, write readable book-style formulas using Unicode symbols, for example:
+lambda = h / p
+E = h nu
+Delta x Delta p >= h-bar / 2
+Use simple explanatory text below each formula.
+Finish the note with a short "Quick Revision Checklist" section.`;
 
   const output = await chatCompletion(
     [
       { role: 'system', content: 'You are an expert tutor who writes clear, exam-focused study material.' },
       { role: 'user', content: prompt },
     ],
-    { maxTokens: lengthTokens[length] ?? 450 }
+    { maxTokens: lengthTokens[length] ?? lengthTokens.Medium }
   );
 
   const saved = await GeneratedContent.create({ user: req.user?.id, type, topic, length, output });
@@ -34,7 +42,7 @@ every line should help someone actually study this topic.`;
     type: 'ai',
     title: 'Generated study content',
     detail: `${type}: ${topic}`,
-    metadata: { generatedContentId: saved._id, length },
+    metadata: { generatedContentId: saved._id, length, content: output },
   });
   res.status(201).json({ success: true, data: saved });
 });

@@ -13,24 +13,24 @@ export const analyzeDocument = asyncHandler(async (req: Request, res: Response) 
   try {
     text = await extractText(req.file.path);
   } finally {
-    // Clean up the temp upload either way.
     await fs.unlink(req.file.path).catch(() => undefined);
   }
 
-  const trimmed = text.slice(0, 12000); // keep prompt size sane
+  const trimmed = text.slice(0, 12000);
 
   const output = await chatCompletion(
     [
       {
         role: 'system',
         content:
-          'You analyze uploaded study documents (lecture notes, papers, readings). Return: ' +
-          '1) a 3-5 sentence summary, 2) 5-8 key points as a bulleted list, 3) any action items ' +
-          '(things to review, practice, or follow up on). Use clear headings for each section.',
+          'You analyze uploaded study documents for students. Return: ' +
+          '1) a 3-5 sentence summary, 2) 5-8 key points as bullets, and 3) action items. ' +
+          'Use clear section headings. Do not use Markdown markers such as #, ##, **, or backticks. ' +
+          'Write formulas in readable book-style notation, not LaTeX.',
       },
       { role: 'user', content: `Document contents:\n\n${trimmed}` },
     ],
-    { maxTokens: 900 }
+    { maxTokens: 1600 }
   );
 
   await recordActivity({
@@ -38,7 +38,7 @@ export const analyzeDocument = asyncHandler(async (req: Request, res: Response) 
     type: 'ai',
     title: 'Analyzed a document',
     detail: req.file.originalname,
-    metadata: { charactersExtracted: text.length },
+    metadata: { charactersExtracted: text.length, content: output },
   });
 
   res.json({

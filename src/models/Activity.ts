@@ -33,5 +33,6 @@ const activitySchema = new Schema<IActivity>(
 );
 
 activitySchema.index({ user: 1, createdAt: -1 });
+activitySchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 7 });
 
 export const Activity = model<IActivity>('Activity', activitySchema);
