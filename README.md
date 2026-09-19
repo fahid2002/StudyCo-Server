@@ -156,9 +156,11 @@ https://studyco-server.onrender.com/api
 - `GET /sessions`
 - `GET /sessions/:id`
 - `GET /sessions/mine`
+- `GET /sessions/booked`
 - `POST /sessions`
 - `DELETE /sessions/:id`
 - `POST /sessions/:id/reserve`
+- `PATCH /sessions/:id/booking`
 - `POST /sessions/:id/reviews`
 
 ### AI

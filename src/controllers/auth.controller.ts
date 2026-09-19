@@ -10,22 +10,31 @@ import { recordActivity } from '../services/activity.service';
 
 const googleClient = new OAuth2Client(env.googleClientId);
 
-function toAuthResponse(user: { _id: unknown; name: string; email: string; interests: string[] }) {
+function toAuthResponse(user: { _id: unknown; name: string; email: string; photoUrl?: string; interests: string[] }) {
   const id = String(user._id);
   return {
     token: generateToken({ id, email: user.email, name: user.name }),
-    user: { id, name: user.name, email: user.email, interests: user.interests },
+    user: { id, name: user.name, email: user.email, photoUrl: user.photoUrl ?? '', interests: user.interests },
   };
 }
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, password } = req.body as { name: string; email: string; password: string };
+  const { name, email, password, photoUrl } = req.body as { name: string; email: string; password: string; photoUrl?: string };
+  const trimmedPhotoUrl = photoUrl?.trim() ?? '';
 
   if (!name || !email || !password) {
     throw new ApiError(400, 'Name, email, and password are all required.');
   }
-  if (password.length < 6) {
-    throw new ApiError(400, 'Password must be at least 6 characters.');
+  if (password.length < 6 || !/[A-Z]/.test(password) || !/[a-z]/.test(password)) {
+    throw new ApiError(400, 'Password must be at least 6 characters and include one uppercase and one lowercase letter.');
+  }
+  if (trimmedPhotoUrl) {
+    try {
+      const parsed = new URL(trimmedPhotoUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Unsupported protocol');
+    } catch {
+      throw new ApiError(400, 'Photo URL must be a valid http or https URL.');
+    }
   }
 
   const existing = await User.findOne({ email: email.toLowerCase() });
@@ -34,7 +43,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const hashed = await bcrypt.hash(password, 10);
-  const user = await User.create({ name, email: email.toLowerCase(), password: hashed });
+  const user = await User.create({ name, email: email.toLowerCase(), password: hashed, photoUrl: trimmedPhotoUrl });
   await recordActivity({ userId: user._id, type: 'auth', title: 'Account created', detail: 'Registered with email and password.' });
 
   res.status(201).json({ success: true, data: toAuthResponse(user) });
@@ -130,8 +139,43 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
   if (!user) throw new ApiError(404, 'User not found.');
   res.json({
     success: true,
-    data: { id: String(user._id), name: user.name, email: user.email, interests: user.interests },
+    data: { id: String(user._id), name: user.name, email: user.email, photoUrl: user.photoUrl ?? '', interests: user.interests },
   });
+});
+
+export const updateProfile = asyncHandler(async (req: Request, res: Response) => {
+  const { name, photoUrl } = req.body as { name?: string; photoUrl?: string };
+  const trimmedName = name?.trim() ?? '';
+  const trimmedPhotoUrl = photoUrl?.trim() ?? '';
+
+  if (trimmedName.length < 2) {
+    throw new ApiError(400, 'Name must be at least 2 characters long.');
+  }
+
+  if (trimmedPhotoUrl) {
+    try {
+      const parsed = new URL(trimmedPhotoUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Unsupported protocol');
+    } catch {
+      throw new ApiError(400, 'Photo URL must be a valid http or https URL.');
+    }
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?.id,
+    { name: trimmedName, photoUrl: trimmedPhotoUrl },
+    { new: true, runValidators: true }
+  );
+  if (!user) throw new ApiError(404, 'User not found.');
+
+  await recordActivity({
+    userId: user._id,
+    type: 'profile',
+    title: 'Updated profile',
+    detail: 'Name and profile photo were updated.',
+  });
+
+  res.json({ success: true, data: toAuthResponse(user) });
 });
 
 export const updateInterests = asyncHandler(async (req: Request, res: Response) => {

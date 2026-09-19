@@ -4,6 +4,7 @@ export interface IUser extends Document {
   _id: Types.ObjectId;
   name: string;
   email: string;
+  photoUrl?: string;
   password?: string;
   googleId?: string;
   interests: string[];
@@ -14,6 +15,7 @@ const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    photoUrl: { type: String, trim: true, default: '' },
     password: { type: String, select: false },
     googleId: { type: String },
     interests: { type: [String], default: [] },

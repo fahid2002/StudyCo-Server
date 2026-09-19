@@ -4,7 +4,7 @@
   "description": "StudyCo API - Express + TypeScript + MongoDB + JWT + Gemini",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/server.ts",
+    "dev": "nodemon",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "seed": "ts-node src/scripts/seed.ts",

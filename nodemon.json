@@ -1,0 +1,9 @@
+{
+  "watch": ["src"],
+  "ext": "ts,json",
+  "ignore": ["dist/**", "uploads/**", "node_modules/**"],
+  "delay": "1000",
+  "signal": "SIGTERM",
+  "killTimeout": 3000,
+  "exec": "ts-node src/server.ts"
+}

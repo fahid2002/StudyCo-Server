@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import { Types } from 'mongoose';
 import { StudySession } from '../models/Session';
+import { Booking } from '../models/Booking';
 import { Review } from '../models/Review';
 import { ApiError } from '../utils/ApiError';
 import { recordActivity } from '../services/activity.service';
@@ -91,6 +92,84 @@ export const mySessions = asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true, data: sessions });
 });
 
+// Sessions reserved by the logged-in user — powers /bookings
+export const bookedSessions = asyncHandler(async (req: Request, res: Response) => {
+  const sessions = await StudySession.find({ attendees: req.user?.id })
+    .sort({ date: 1 })
+    .populate('host', 'name');
+  const bookings = await Booking.find({
+    user: req.user?.id,
+    session: { $in: sessions.map((session) => session._id) },
+  });
+  const bookingBySession = new Map(bookings.map((booking) => [String(booking.session), booking]));
+
+  res.json({
+    success: true,
+    data: sessions.map((session) => ({
+      session,
+      booking: bookingBySession.get(String(session._id)) ?? null,
+    })),
+  });
+});
+
+export const updateBooking = asyncHandler(async (req: Request, res: Response) => {
+  const note = typeof req.body.note === 'string' ? req.body.note.trim() : '';
+  if (note.length > 500) throw new ApiError(400, 'Booking note must be 500 characters or fewer.');
+
+  const session = await StudySession.findOne({ _id: req.params.id, attendees: req.user?.id });
+  if (!session) throw new ApiError(404, 'You do not have a booking for this session.');
+
+  const booking = await Booking.findOneAndUpdate(
+    { user: req.user?.id, session: session._id },
+    { user: req.user?.id, session: session._id, note },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+
+  await recordActivity({
+    userId: req.user?.id,
+    type: 'booking',
+    title: 'Updated booking details',
+    detail: session.title,
+    metadata: { sessionId: session._id },
+  });
+
+  res.json({ success: true, data: booking });
+});
+
+export const cancelBooking = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) throw new ApiError(401, 'Login is required to cancel a booking.');
+
+  const session = await StudySession.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      attendees: userId,
+      seatsReserved: { $gt: 0 },
+    },
+    {
+      $pull: { attendees: userId },
+      $inc: { seatsReserved: -1 },
+    },
+    { new: true }
+  );
+
+  if (!session) throw new ApiError(404, 'You do not have a booking for this session.');
+
+  await Booking.deleteOne({ user: userId, session: session._id });
+  await recordActivity({
+    userId,
+    type: 'booking',
+    title: 'Cancelled a booking',
+    detail: session.title,
+    metadata: { sessionId: session._id },
+  });
+
+  res.json({
+    success: true,
+    data: { sessionId: session._id, seatsReserved: session.seatsReserved },
+  });
+});
+
 export const deleteSession = asyncHandler(async (req: Request, res: Response) => {
   const session = await StudySession.findById(req.params.id);
   if (!session) throw new ApiError(404, 'Session not found.');
@@ -124,6 +203,11 @@ export const reserveSeat = asyncHandler(async (req: Request, res: Response) => {
   session.seatsReserved += 1;
   session.attendees.push(new Types.ObjectId(userId));
   await session.save();
+  await Booking.findOneAndUpdate(
+    { user: userId, session: session._id },
+    { $setOnInsert: { user: userId, session: session._id, note: '' } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
   await recordActivity({
     userId,
     type: 'booking',

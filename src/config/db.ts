@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import dns from 'node:dns';
 import { env } from './env';
 
 export async function connectDB(): Promise<void> {
@@ -7,6 +8,15 @@ export async function connectDB(): Promise<void> {
     return;
   }
   try {
+    const dnsServers = process.env.MONGODB_DNS_SERVERS
+      ?.split(',')
+      .map((server) => server.trim())
+      .filter(Boolean);
+
+    if (dnsServers?.length) {
+      dns.setServers(dnsServers);
+    }
+
     await mongoose.connect(env.mongoUri);
     console.log('[db] MongoDB connected');
   } catch (err) {
