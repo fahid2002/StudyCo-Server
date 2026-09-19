@@ -4,6 +4,7 @@ import sessionRoutes from './session.routes';
 import aiRoutes from './ai.routes';
 import activityRoutes from './activity.routes';
 import studyRoutes from './study.routes';
+import contactRoutes from './contact.routes';
 
 const router = Router();
 
@@ -12,5 +13,6 @@ router.use('/sessions', sessionRoutes);
 router.use('/ai', aiRoutes);
 router.use('/activity', activityRoutes);
 router.use('/study', studyRoutes);
+router.use('/contact', contactRoutes);
 
 export default router;

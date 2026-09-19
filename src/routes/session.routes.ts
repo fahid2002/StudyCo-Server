@@ -10,12 +10,14 @@ import {
   deleteSession,
   reserveSeat,
   addReview,
+  sessionStats,
 } from '../controllers/session.controller';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
 router.get('/', listSessions);
+router.get('/stats', sessionStats);
 router.get('/mine', requireAuth, mySessions);
 router.get('/booked', requireAuth, bookedSessions);
 router.get('/:id', requireAuth, getSession);

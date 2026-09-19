@@ -68,9 +68,6 @@ function buildGeminiPayload(messages: ChatMessage[], opts: { temperature?: numbe
     generationConfig: {
       temperature: opts.temperature ?? 0.6,
       maxOutputTokens: Math.max(opts.maxTokens ?? 700, 256),
-      thinkingConfig: {
-        thinkingLevel: 'MINIMAL',
-      },
     },
   };
 }

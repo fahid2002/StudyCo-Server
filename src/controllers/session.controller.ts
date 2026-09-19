@@ -47,6 +47,44 @@ export const listSessions = asyncHandler(async (req: Request, res: Response) => 
   });
 });
 
+// GET /api/sessions/stats — live aggregate metrics for the public home page
+export const sessionStats = asyncHandler(async (_req: Request, res: Response) => {
+  const [stats] = await StudySession.aggregate<{
+    totalSessions: number;
+    openSeats: number;
+    averageRating: number | null;
+    subjects: string[];
+  }>([
+    { $match: { status: 'Upcoming' } },
+    {
+      $project: {
+        subject: 1,
+        ratingAverage: 1,
+        openSeats: { $max: [{ $subtract: ['$seatsTotal', '$seatsReserved'] }, 0] },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalSessions: { $sum: 1 },
+        openSeats: { $sum: '$openSeats' },
+        averageRating: { $avg: '$ratingAverage' },
+        subjects: { $addToSet: '$subject' },
+      },
+    },
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      totalSessions: stats?.totalSessions ?? 0,
+      openSeats: stats?.openSeats ?? 0,
+      activeSubjects: stats?.subjects.length ?? 0,
+      averageRating: Number((stats?.averageRating ?? 0).toFixed(1)),
+    },
+  });
+});
+
 export const getSession = asyncHandler(async (req: Request, res: Response) => {
   const session = await StudySession.findById(req.params.id).populate('host', 'name email');
   if (!session) throw new ApiError(404, 'Session not found.');
