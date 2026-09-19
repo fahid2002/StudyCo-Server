@@ -155,7 +155,11 @@ export const cancelBooking = asyncHandler(async (req: Request, res: Response) =>
 
   if (!session) throw new ApiError(404, 'You do not have a booking for this session.');
 
-  await Booking.deleteOne({ user: userId, session: session._id });
+  await Booking.findOneAndUpdate(
+    { user: userId, session: session._id },
+    { status: 'cancelled' },
+    { new: true }
+  );
   await recordActivity({
     userId,
     type: 'booking',
@@ -166,7 +170,7 @@ export const cancelBooking = asyncHandler(async (req: Request, res: Response) =>
 
   res.json({
     success: true,
-    data: { sessionId: session._id, seatsReserved: session.seatsReserved },
+    data: { sessionId: session._id, seatsReserved: session.seatsReserved, status: 'cancelled' },
   });
 });
 
@@ -205,7 +209,7 @@ export const reserveSeat = asyncHandler(async (req: Request, res: Response) => {
   await session.save();
   await Booking.findOneAndUpdate(
     { user: userId, session: session._id },
-    { $setOnInsert: { user: userId, session: session._id, note: '' } },
+    { $set: { status: 'reserved' }, $setOnInsert: { user: userId, session: session._id, note: '' } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
   await recordActivity({
@@ -222,9 +226,17 @@ export const addReview = asyncHandler(async (req: Request, res: Response) => {
   const { rating, comment } = req.body as { rating: number; comment: string };
   const session = await StudySession.findById(req.params.id);
   if (!session) throw new ApiError(404, 'Session not found.');
-  if (!rating || !comment) throw new ApiError(400, 'Rating and comment are required.');
+  if (!session.attendees.some((attendee) => String(attendee) === String(req.user?.id))) {
+    throw new ApiError(403, 'You can review a session after reserving a seat.');
+  }
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    throw new ApiError(400, 'Rating must be an integer from 1 to 5.');
+  }
+  const trimmedComment = typeof comment === 'string' ? comment.trim() : '';
+  if (!trimmedComment) throw new ApiError(400, 'A review comment is required.');
+  if (trimmedComment.length > 1000) throw new ApiError(400, 'Review comment must be 1000 characters or fewer.');
 
-  const review = await Review.create({ session: session._id, author: req.user?.id, rating, comment });
+  const review = await Review.create({ session: session._id, author: req.user?.id, rating, comment: trimmedComment });
 
   const allReviews = await Review.find({ session: session._id });
   session.ratingCount = allReviews.length;
